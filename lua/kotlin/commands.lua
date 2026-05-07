@@ -147,7 +147,7 @@ function M.document_symbols()
     return
   end
 
-  -- Request symbols and show in trouble
+  -- Request symbols and route through the configured list adapter.
   local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
 
   clients[1].request("textDocument/documentSymbol", params, function(err, result)
@@ -191,11 +191,11 @@ function M.document_symbols()
     end
 
     local items = flatten_symbols(result)
-
-    -- Set location list and open with trouble
-    vim.fn.setloclist(0, items, "r")
-    vim.fn.setloclist(0, {}, "a", { title = "Document Symbols" })
-    require("trouble").open("loclist")
+    require("kotlin.adapters.list").open(items, {
+      bufnr = bufnr,
+      title = "Document Symbols",
+      source = "kotlin_document_symbols",
+    })
   end, bufnr)
 end
 
