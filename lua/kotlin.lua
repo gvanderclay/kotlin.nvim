@@ -3,6 +3,10 @@ local M = {}
 function M.setup(opts)
   opts = opts or {}
 
+  -- Register integration choices early so the adapters resolve correctly
+  -- from anywhere — including health checks and the LSP file-type autocmd.
+  require("kotlin.adapters").configure(opts.integrations)
+
   -- Register user commands eagerly so :KotlinHealth (and friends) are available
   -- even when LSP startup fails. The LSP itself is wired lazily on FileType.
   require("kotlin.commands").setup()
