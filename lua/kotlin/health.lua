@@ -112,10 +112,41 @@ local function check_jre()
   local jre = require("kotlin.jre")
   local minimum = jre.minimum_supported_jre_version
 
+  -- Re-resolve the launcher kind so we can downgrade JDK errors to info when
+  -- bin/intellij-server is going to be used (it ships a bundled JBR and
+  -- ignores any external java; the JDK probes below only matter for the
+  -- jre_path / manual-classpath fallback paths).
+  local installer = require("kotlin.adapters.installer")
+  local installer_root = installer.resolve({ is_windows = is_windows() })
+  local kotlin = require("kotlin")
+  local resolved
+  if installer_root then
+    resolved = kotlin.resolve_kotlin_lsp_dir(installer_root, is_windows())
+  end
+  if not resolved then
+    local env_dir = os.getenv("KOTLIN_LSP_DIR")
+    if env_dir then
+      resolved = kotlin.resolve_kotlin_lsp_dir(env_dir, is_windows()) or env_dir
+    end
+  end
+
+  local intellij_server_present = false
+  if resolved then
+    local sep = is_windows() and "\\" or "/"
+    local intellij_server = resolved
+      .. sep
+      .. "bin"
+      .. sep
+      .. (is_windows() and "intellij-server.exe" or "intellij-server")
+    intellij_server_present = vim.fn.executable(intellij_server) == 1
+  end
+
+  local report_bad = intellij_server_present and info or err
+
   local function probe(label, java_bin, required)
     if vim.fn.executable(java_bin) ~= 1 then
       if required then
-        err(label .. " not executable: " .. java_bin)
+        report_bad(label .. " not executable: " .. java_bin)
       else
         info(label .. " not configured")
       end
@@ -124,11 +155,16 @@ local function check_jre()
     if jre.is_supported_version(java_bin) then
       ok(("%s -> %s (>= JDK %d)"):format(label, java_bin, minimum))
     else
-      err(("%s -> %s does not satisfy JDK %d minimum"):format(label, java_bin, minimum))
+      report_bad(("%s -> %s does not satisfy JDK %d minimum"):format(label, java_bin, minimum))
     end
   end
 
-  info(("Minimum JDK required: %d (kotlin-lsp v262.4739.0+)"):format(minimum))
+  if intellij_server_present then
+    info("bin/intellij-server is the resolved launcher; it uses its bundled JBR.")
+    info(("Minimum JDK %d only matters for jre_path / manual-classpath fallback paths."):format(minimum))
+  else
+    info(("Minimum JDK required: %d (kotlin-lsp v262.4739.0+)"):format(minimum))
+  end
 
   if vim.env.JAVA_HOME then
     probe("$JAVA_HOME java", vim.env.JAVA_HOME .. "/bin/" .. (is_windows() and "java.exe" or "java"), true)
@@ -141,10 +177,6 @@ local function check_jre()
   else
     info("No `java` on PATH")
   end
-
-  info(
-    "Note: when bin/intellij-server is the chosen launcher it uses its bundled JBR; the JREs above only matter if you set jre_path or fall back to the manual classpath path."
-  )
 end
 
 local function check_clients()
