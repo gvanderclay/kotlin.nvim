@@ -163,22 +163,20 @@ function M.setup_kotlin_lsp(opts)
   -- changed. Older builds extracted directly into the package root. Probe both.
   local kotlin_lsp_dir = nil
 
-  local mason_package_dir = vim.fn.expand("$MASON/packages/kotlin-lsp")
+  local installer = require("kotlin.adapters.installer")
+  local installer_root = installer.resolve({ is_windows = is_windows })
 
-  if vim.fn.isdirectory(mason_package_dir) == 1 then
-    kotlin_lsp_dir = M.resolve_kotlin_lsp_dir(mason_package_dir, is_windows)
+  if installer_root then
+    kotlin_lsp_dir = M.resolve_kotlin_lsp_dir(installer_root, is_windows)
   end
 
-  -- Fallback to environment variable if not found in Mason
+  -- Fallback to environment variable if the installer adapter found nothing.
   if not kotlin_lsp_dir then
     local env_dir = os.getenv("KOTLIN_LSP_DIR")
     if env_dir then
       kotlin_lsp_dir = M.resolve_kotlin_lsp_dir(env_dir, is_windows) or env_dir
     else
-      vim.notify(
-        "KOTLIN_LSP_DIR environment variable is not set and Kotlin LSP not found in Mason",
-        vim.log.levels.ERROR
-      )
+      vim.notify(installer.format_not_found_error(), vim.log.levels.ERROR)
       return
     end
   end

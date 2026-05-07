@@ -26,22 +26,23 @@ local function check_neovim()
 end
 
 local function check_dependencies()
-  start("Dependencies")
+  start("Optional integrations")
   local checks = {
-    { mod = "mason", name = "mason.nvim", required = true },
-    { mod = "oil", name = "oil.nvim", required = false, note = "package navigation via 'go to definition'" },
-    { mod = "trouble", name = "trouble.nvim", required = false, note = ":KotlinSymbols / :KotlinWorkspaceSymbols" },
-    { mod = "dap", name = "nvim-dap", required = false, note = ":KotlinDebug" },
+    { mod = "mason", name = "mason.nvim", note = "managed kotlin-lsp install (integrations.installer = 'mason')" },
+    { mod = "oil", name = "oil.nvim", note = "package navigation (integrations.file_browser = 'oil')" },
+    { mod = "mini.files", name = "mini.files", note = "package navigation (integrations.file_browser = 'mini_files')" },
+    { mod = "trouble", name = "trouble.nvim", note = ":KotlinSymbols UI (integrations.list = 'trouble')" },
+    { mod = "snacks", name = "snacks.nvim", note = ":KotlinSymbols UI (integrations.list = 'snacks')" },
+    { mod = "telescope", name = "telescope.nvim", note = ":KotlinSymbols UI (integrations.list = 'telescope')" },
+    { mod = "fzf-lua", name = "fzf-lua", note = ":KotlinSymbols UI (integrations.list = 'fzf_lua')" },
+    { mod = "mini.pick", name = "mini.pick", note = ":KotlinSymbols UI (integrations.list = 'mini_pick')" },
+    { mod = "dap", name = "nvim-dap", note = ":KotlinDebug" },
   }
   for _, c in ipairs(checks) do
     if pcall(require, c.mod) then
       ok(c.name .. " installed")
     else
-      if c.required then
-        err(c.name .. " is required but not installed")
-      else
-        warn(("%s not installed (optional — needed for %s)"):format(c.name, c.note))
-      end
+      info(("%s not installed (optional — %s)"):format(c.name, c.note))
     end
   end
 end
@@ -51,12 +52,13 @@ local function check_install()
   local kotlin = require("kotlin")
   local sep = is_windows() and "\\" or "/"
 
-  local mason_root = vim.fn.expand("$MASON/packages/kotlin-lsp")
-  local mason_exists = vim.fn.isdirectory(mason_root) == 1
-  if mason_exists then
-    info("Mason package: " .. mason_root)
+  local installer = require("kotlin.adapters.installer")
+  local installer_root = installer.resolve({ is_windows = is_windows() })
+  if installer_root then
+    info("Installer adapter resolved: " .. installer_root)
   else
-    info("Mason package: not present (Mason root not detected)")
+    info("Installer adapter: no install dir resolved (integrations.installer = "
+      .. vim.inspect(require("kotlin.adapters").get("installer")) .. ")")
   end
 
   local env_dir = os.getenv("KOTLIN_LSP_DIR")
@@ -65,15 +67,15 @@ local function check_install()
   end
 
   local resolved
-  if mason_exists then
-    resolved = kotlin.resolve_kotlin_lsp_dir(mason_root, is_windows())
+  if installer_root then
+    resolved = kotlin.resolve_kotlin_lsp_dir(installer_root, is_windows())
   end
   if not resolved and env_dir then
     resolved = kotlin.resolve_kotlin_lsp_dir(env_dir, is_windows()) or env_dir
   end
 
   if not resolved then
-    err("Could not locate a kotlin-lsp install. Run :MasonInstall kotlin-lsp or set $KOTLIN_LSP_DIR.")
+    err(installer.format_not_found_error())
     return
   end
 
