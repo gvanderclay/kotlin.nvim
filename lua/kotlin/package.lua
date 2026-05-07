@@ -18,15 +18,7 @@ function M.setup()
           local prev_ft = vim.api.nvim_buf_get_option(prev_buf, "filetype") or ""
 
           if prev_ft == "kotlin" then
-            local ok, oil = pcall(require, "oil")
-            if ok then
-              local open_ok, open_err = pcall(oil.open, bufname)
-              if not open_ok then
-                vim.notify("Failed to open with oil: " .. (open_err or "unknown"), vim.log.levels.ERROR)
-              end
-            else
-              vim.notify("oil.nvim not found", vim.log.levels.WARN)
-            end
+            require("kotlin.adapters.file_browser").open(bufname, { buf = args.buf, prev_buf = prev_buf })
           end
         end)
       end
