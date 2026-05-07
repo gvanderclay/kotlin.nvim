@@ -32,6 +32,12 @@ require("kotlin").setup({
     -- "auto" probes the mason path convention; falls through to $KOTLIN_LSP_DIR.
     installer = "auto" | "none" | "mason" | function(ctx),
   },
+
+  -- Set lsp.enable = false to skip the FileType autocmd that registers
+  -- vim.lsp.config.kotlin_ls. Use this when you manage kotlin LSP setup
+  -- yourself (e.g. via after/lsp/kotlin_ls.lua + vim.lsp.enable). Commands,
+  -- adapters, file templates, package navigation, and DAP still work.
+  lsp = { enable = true },
 })
 ```
 

@@ -12,10 +12,23 @@ function M.setup(opts)
   require("kotlin.commands").setup()
   require("kotlin.dap").setup()
   require("kotlin.file_templates").setup(opts)
+  -- Package-folder navigation is independent of who owns LSP setup, so wire
+  -- it up unconditionally — it only fires when the previous buffer was
+  -- already a kotlin file.
+  require("kotlin.package").setup()
 
   vim.api.nvim_create_user_command("KotlinCleanWorkspace", function()
     M.clean_workspace()
   end, { desc = "Clean Kotlin LSP workspace for current project" })
+
+  -- Allow users who manage their own kotlin LSP setup (e.g. via
+  -- after/lsp/kotlin_ls.lua + vim.lsp.enable) to use this plugin for its
+  -- commands and adapters only. Set { lsp = { enable = false } } to skip
+  -- the FileType autocmd that registers vim.lsp.config.kotlin_ls.
+  local lsp_opts = opts.lsp or {}
+  if lsp_opts.enable == false then
+    return
+  end
 
   -- Create an autocommand group for kotlin-lsp
   local group = vim.api.nvim_create_augroup("kotlin_lsp", { clear = true })
@@ -266,7 +279,6 @@ function M.setup_kotlin_lsp(opts)
   require("kotlin.autocommands").setup_inlay_hints(opts)
   require("kotlin.autocommands").setup_folding(opts)
   require("kotlin.diagnostics").setup()
-  require("kotlin.package").setup()
 
   local default_root_markers = {
     "build.gradle",
