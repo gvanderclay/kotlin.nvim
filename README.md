@@ -74,30 +74,31 @@ Extensions for JetBrains' <a href="https://github.com/Kotlin/kotlin-lsp/">Kotlin
 
 Install the plugin with your package manager:
 
-**Dependencies:**
-- [mason.nvim](https://github.com/williamboman/mason.nvim) - LSP installer
-- [mason-lspconfig.nvim](https://github.com/williamboman/mason-lspconfig.nvim) - Mason LSP integration
-- [oil.nvim](https://github.com/stevearc/oil.nvim) - File explorer for package navigation (used by "Go to Definition" on package declarations)
-- [trouble.nvim](https://github.com/folke/trouble.nvim) - Enhanced quickfix/location list UI (required for `:KotlinSymbols` and `:KotlinWorkspaceSymbols` commands to display document outline and workspace symbols)
+**Requirements:**
+- Neovim 0.11+
+- A `kotlin-lsp` install reachable via one of: `integrations.installer = 'mason'`, `$KOTLIN_LSP_DIR`, or a launcher on `$PATH`. See [Installing kotlin-lsp](#-installing-kotlin-lsp).
 
-**Optional (install and configure separately):**
-- Debug Adapter Protocol client ([nvim-dap](https://github.com/mfussenegger/nvim-dap)). Required for `:KotlinDebug`. kotlin.nvim does not install or configure nvim-dap for you — set it up once globally (signs, keymaps, optional UI) and kotlin.nvim will register a `kotlin` adapter on top.
+**Optional integrations** (auto-detected when `integrations.* = 'auto'`):
+- [oil.nvim](https://github.com/stevearc/oil.nvim) — package-folder navigation; falls back to `vim.cmd.edit` (netrw or your default directory handler) when absent.
+- [trouble.nvim](https://github.com/folke/trouble.nvim) / [snacks.nvim](https://github.com/folke/snacks.nvim) / [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) / [fzf-lua](https://github.com/ibhagwan/fzf-lua) / [mini.pick](https://github.com/echasnovski/mini.pick) — UI for `:KotlinSymbols`; falls back to the location list (`setloclist` + `:lopen`) when absent.
+- [mini.files](https://github.com/echasnovski/mini.files) — alternative directory handler; selectable via `integrations.file_browser = 'mini_files'`.
+- [mason.nvim](https://github.com/williamboman/mason.nvim) — managed `kotlin-lsp` installation; selectable via `integrations.installer = 'mason'`.
+- [nvim-dap](https://github.com/mfussenegger/nvim-dap) — required for `:KotlinDebug`. Configure globally; kotlin.nvim registers a `kotlin` adapter on top.
+
+> **Fork note:** this is a fork of [AlexandrosAlexiou/kotlin.nvim](https://github.com/AlexandrosAlexiou/kotlin.nvim) that decouples the plugin from oil/trouble/mason via configurable adapters. See [`FORK.md`](FORK.md) for the rebase workflow and the integration API.
 
 ### [lazy.nvim](https://github.com/folke/lazy.nvim)
 ```lua
 {
     "AlexandrosAlexiou/kotlin.nvim",
     ft = { "kotlin" },
-    dependencies = {
-        "mason.nvim",
-        "mason-lspconfig.nvim",
-        "oil.nvim",
-        "trouble.nvim",
-        -- nvim-dap is NOT a kotlin.nvim dependency. Install and configure it
-        -- separately (signs, keymaps, optionally nvim-dap-ui). kotlin.nvim only
-        -- registers a `kotlin` adapter and the `:KotlinDebug` command on top.
-        -- See the "Debugging Support" section below for details.
-    },
+    -- This fork has no required plugin dependencies. List the optional
+    -- integrations you actually use; kotlin.nvim will auto-detect them.
+    -- Examples (all optional): "stevearc/oil.nvim", "folke/trouble.nvim",
+    -- "folke/snacks.nvim", "echasnovski/mini.files", "echasnovski/mini.pick",
+    -- "williamboman/mason.nvim". nvim-dap is required only for `:KotlinDebug`
+    -- — install and configure it separately if you need debugging.
+    -- dependencies = { },
     config = function()
         require("kotlin").setup {
             -- Optional: Specify root markers for multi-module projects
@@ -444,8 +445,8 @@ kotlin.nvim provides several commands for working with Kotlin code:
 |---------|-------------|
 | `:KotlinOrganizeImports` | Organize and optimize imports in the current file |
 | `:KotlinFormat` | Format the current buffer using IntelliJ IDEA formatting rules |
-| `:KotlinSymbols` | Show document symbols/outline for the current buffer (displays in trouble.nvim window) |
-| `:KotlinWorkspaceSymbols` | Search for symbols across the entire workspace (displays in trouble.nvim window) |
+| `:KotlinSymbols` | Show document symbols/outline for the current buffer (uses `integrations.list`; falls back to the location list) |
+| `:KotlinWorkspaceSymbols` | Search for symbols across the entire workspace (delegates to `vim.lsp.buf.workspace_symbol`, which honors `vim.ui.select`) |
 | `:KotlinTypeDefinition` | Go to the type definition of the symbol under cursor (v262+) |
 | `:KotlinImplementation` | Go to the implementation of the symbol under cursor (v262+) |
 | `:KotlinIncomingCalls` | Show callers of the symbol under cursor (v262.4739.0+) |
@@ -462,7 +463,7 @@ kotlin.nvim provides several commands for working with Kotlin code:
 | `:KotlinDebug [port]` | Attach debugger to a Kotlin/JVM process (JDWP port, default 5005; requires nvim-dap) |
 
 > [!note]
-> `:KotlinSymbols` and `:KotlinWorkspaceSymbols` require [trouble.nvim](https://github.com/folke/trouble.nvim) to display results in a clean, interactive window. These commands provide a better alternative to traditional location lists for browsing code structure.
+> `:KotlinSymbols` routes results through `integrations.list` (`auto` → trouble → snacks → telescope → fzf-lua → mini.pick → location list). `:KotlinWorkspaceSymbols` calls `vim.lsp.buf.workspace_symbol`, which any picker that overrides `vim.ui.select` (snacks, telescope, mini.pick, fzf-lua, dressing) will render automatically.
 
 **Key Mappings Example:**
 ```lua
